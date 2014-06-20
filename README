@@ -1,6 +1,7 @@
 Basic agent to control analyses on remote hosts over SSH:
 
 Requirements:
+- python3-flask
 - tracevisor host/user can access the remote host via SSH with a shared key
   with no password
 - lttng-sessiond is started as root on the target machine
