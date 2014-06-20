@@ -10,3 +10,6 @@ To start an I/O analysis on host "localhost" as user "julien" for 2 seconds:
 curl -i -H "Content-Type: application/json" -X POST -d '{"host":"localhost", "duration":2, "type":"io", "username":"julien"}' http://localhost:5000/trace/api/v1.0/analyses
 
 The request only returns when the trace is completed.
+
+To get the list of supported analyses and the configuration:
+curl http://localhost:5000/trace/api/v1.0/analyses

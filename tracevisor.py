@@ -6,6 +6,7 @@ import time
 from flask import Flask
 from flask import request
 from flask import abort
+from flask import jsonify
 
 app = Flask(__name__)
 appname = "Tracevisor"
@@ -31,6 +32,10 @@ analyses["io"]["syscalls"] = True
 @app.route('/')
 def index():
     return "%s %s" % (appname, appversion)
+
+@app.route('/trace/api/v1.0/analyses', methods = ['GET'])
+def get_analyses():
+    return jsonify( { 'analyses': analyses } )
 
 def check_requirements(host, username):
     # check SSH connection
