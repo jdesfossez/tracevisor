@@ -1,0 +1,12 @@
+Basic agent to control analyses on remote hosts over SSH:
+
+Requirements:
+- tracevisor host/user can access the remote host via SSH with a shared key
+  with no password
+- lttng-sessiond is started as root on the target machine
+- the remote user is root or in tracing group
+
+To start an I/O analysis on host "localhost" as user "julien" for 2 seconds:
+curl -i -H "Content-Type: application/json" -X POST -d '{"host":"localhost", "duration":2, "type":"io", "username":"julien"}' http://localhost:5000/trace/api/v1.0/analyses
+
+The request only returns when the trace is completed.
