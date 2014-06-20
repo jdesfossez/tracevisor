@@ -37,6 +37,17 @@ def index():
 def get_analyses():
     return jsonify( { 'analyses': analyses } )
 
+@app.route('/trace/api/v1.0/ssh', methods = ['GET'])
+def get_ssh_keys():
+    path = os.path.join(os.environ["HOME"], ".ssh")
+    l = os.listdir(path)
+    keys = []
+    for k in l:
+        if ".pub" in k:
+            f = open(os.path.join(path,k))
+            keys.append(f.read())
+    return jsonify({ 'keys': keys })
+
 def check_requirements(host, username):
     # check SSH connection
     try:
@@ -148,4 +159,4 @@ def start_analysis():
             (type, duration, host)
 
 if __name__ == '__main__':
-    app.run(debug = True)
+    app.run(host='0.0.0.0', debug = True)
