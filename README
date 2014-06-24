@@ -14,3 +14,6 @@ The request only returns when the trace is completed.
 
 To get the list of supported analyses and the configuration:
 curl http://localhost:5000/trace/api/v1.0/analyses
+
+To get the list of servers running tracesd (https://github.com/jdesfossez/tracesd.git) :
+curl http://localhost:5000/trace/api/v1.0/servers
