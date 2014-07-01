@@ -9,7 +9,7 @@ git clone https://github.com/jdesfossez/tracevisor.git
 cp tracevisor/upstart/tracevisor.conf /etc/init/
 sed -i 's#exec /opt/tracevisor/tracevisor.py#exec sudo -u tracevisor /var/lib/tracevisor/tracevisor/tracevisor.py#' /etc/init/tracevisor.conf
 mkdir /var/lib/tracevisor/.ssh
-ssh-keygen -t rsa -b 2048 -N "" -f /var/lib/tracevisor/.ssh/id_rsa_tracevisor
+ssh-keygen -C tracevisor@tracevisor -t rsa -b 2048 -N "" -f /var/lib/tracevisor/.ssh/id_rsa_tracevisor
 chown -R tracevisor:nogroup /var/lib/tracevisor/
 
 start tracevisor

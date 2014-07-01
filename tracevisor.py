@@ -13,7 +13,7 @@ appname = "Tracevisor"
 appversion = "1.0-alpha0"
 
 relay = "127.0.0.1"
-ssh = "ssh -oBatchMode=yes -oStrictHostKeyChecking=no"
+ssh = "ssh -oBatchMode=yes -oStrictHostKeyChecking=no -i ~/.ssh/id_rsa_tracevisor"
 
 analyses = {}
 
