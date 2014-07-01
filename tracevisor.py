@@ -7,6 +7,7 @@ from flask import Flask
 from flask import request
 from flask import abort
 from flask import jsonify
+from cors import crossdomain
 
 app = Flask(__name__)
 appname = "Tracevisor"
@@ -30,14 +31,17 @@ analyses["io"]["kernel_events"] = "sched_switch,block_rq_complete,block_rq_issue
 analyses["io"]["syscalls"] = True
 
 @app.route('/')
+@crossdomain(origin='*')
 def index():
     return "%s %s" % (appname, appversion)
 
 @app.route('/trace/api/v1.0/analyses', methods = ['GET'])
+@crossdomain(origin='*')
 def get_analyses():
     return jsonify( { 'analyses': analyses } )
 
 @app.route('/trace/api/v1.0/ssh', methods = ['GET'])
+@crossdomain(origin='*')
 def get_ssh_keys():
     path = os.path.join(os.environ["HOME"], ".ssh")
     l = os.listdir(path)
@@ -49,6 +53,7 @@ def get_ssh_keys():
     return jsonify({ 'keys': keys })
 
 @app.route('/trace/api/v1.0/servers', methods = ['GET'])
+@crossdomain(origin='*')
 def get_server_list():
     try:
         ret = subprocess.check_output("avahi-browse _lttng._tcp -p -t -r", shell=True)
@@ -156,6 +161,7 @@ def launch_trace(host, username, relay, type, duration):
     return 0
 
 @app.route('/trace/api/v1.0/analyses', methods = ['POST'])
+@crossdomain(origin='*')
 def start_analysis():
     params = ['type', 'duration', 'host', 'username']
     if not request.json:
