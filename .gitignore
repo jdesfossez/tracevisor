@@ -1,0 +1,7 @@
+.vagrant/
+__pycache__/
+
+# emacs files
+*~
+\#*\#
+.\#*
