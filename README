@@ -8,7 +8,10 @@ Requirements:
 - the remote user is root or in tracing group
 
 To start an I/O analysis on host "localhost" as user "julien" for 2 seconds:
-curl -i -H "Content-Type: application/json" -X POST -d '{"host":"localhost", "duration":2, "type":"io", "username":"julien"}' http://localhost:5000/trace/api/v1.0/analyses
+curl -i -H "Content-Type: application/json" -X POST -d '{"host":"localhost", "duration":2, "type":"io", "username":"root"}' http://localhost:5000/trace/api/v1.0/analyses
+
+You can also specify the relay address :
+curl -i -H "Content-Type: application/json" -X POST -d '{"host":"localhost", "duration":2, "type":"io", "username":"root", "relay":"localhost"}' http://localhost:5000/trace/api/v1.0/analyses
 
 The request only returns when the trace is completed.
 
@@ -17,3 +20,6 @@ curl http://localhost:5000/trace/api/v1.0/analyses
 
 To get the list of servers running tracesd (https://github.com/jdesfossez/tracesd.git) :
 curl http://localhost:5000/trace/api/v1.0/servers
+
+To get the public ssh keys of the user that runs tracevisor :
+curl http://localhost:5000/trace/api/v1.0/ssh

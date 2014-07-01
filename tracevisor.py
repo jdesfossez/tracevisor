@@ -160,9 +160,17 @@ def start_analysis():
     params = ['type', 'duration', 'host', 'username']
     if not request.json:
         abort(400)
+    # mandatory parameters
     for p in params:
         if not p in request.json:
             abort(400)
+
+    # override the relay in the request
+    if 'relay' in request.json:
+        r = request.json["relay"]
+    else:
+        r = relay
+
     type = request.json["type"]
     duration = request.json["duration"]
     host = request.json["host"]
@@ -174,7 +182,7 @@ def start_analysis():
     ret = check_requirements(host, username)
     if ret != 0:
         return ret
-    ret = launch_trace(host, username, relay, type, duration)
+    ret = launch_trace(host, username, r, type, duration)
     if ret != 0:
         return ret
 
