@@ -160,8 +160,8 @@ def launch_trace(host, username, relay, type, duration):
 
     return 0
 
-@app.route('/trace/api/v1.0/analyses', methods = ['POST'])
-@crossdomain(origin='*')
+@app.route('/trace/api/v1.0/analyses', methods = ['POST', 'OPTIONS'])
+@crossdomain(origin='*', headers=['Content-Type'])
 def start_analysis():
     params = ['type', 'duration', 'host', 'username']
     if not request.json:
