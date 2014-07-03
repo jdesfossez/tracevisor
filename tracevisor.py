@@ -30,6 +30,11 @@ analyses["io"]["kernel_events"] = "sched_switch,block_rq_complete,block_rq_issue
         "lttng_statedump_block_device"
 analyses["io"]["syscalls"] = True
 
+session_name = ""
+# Temporarily hardcoded
+PATH_ANALYSES = "/usr/local/src/lttng-analyses/"
+PATH_TRACES = "/root/lttng-traces/tracesd-0/"
+
 @app.route('/')
 @crossdomain(origin='*')
 def index():
@@ -102,11 +107,12 @@ def check_requirements(host, username):
     return 0
 
 def launch_trace(host, username, relay, type, duration):
-    name = "%s-%s-%s" % (appname, type, str(int(time.time())))
+    global session_name
+    session_name = "%s-%s-%s" % (appname, type, str(int(time.time())))
     # create the session
     try:
         ret = subprocess.check_output("%s %s@%s lttng create %s -U %s" \
-                % (ssh, username, host, name, "net://%s" % relay), shell=True)
+                % (ssh, username, host, session_name, "net://%s" % relay), shell=True)
     except subprocess.CalledProcessError:
         return "Session creation error\n", 503
     # enable events
@@ -115,7 +121,7 @@ def launch_trace(host, username, relay, type, duration):
             len(analyses[type]["kernel_events"]) > 0:
         try:
             ret = subprocess.check_output("%s %s@%s lttng enable-event -s %s -k %s" \
-                    % (ssh, username, host, name,
+                    % (ssh, username, host, session_name,
                         analyses[type]["kernel_events"]), shell=True)
         except subprocess.CalledProcessError:
             return "Enabling kernel events failed\n", 503
@@ -123,7 +129,7 @@ def launch_trace(host, username, relay, type, duration):
     if "syscalls" in analyses[type].keys():
         try:
             ret = subprocess.check_output("%s %s@%s lttng enable-event -s %s -k --syscall -a" \
-                    % (ssh, username, host, name), shell=True)
+                    % (ssh, username, host, session_name), shell=True)
         except subprocess.CalledProcessError:
             return "Enabling syscalls failed\n", 503
 
@@ -131,7 +137,7 @@ def launch_trace(host, username, relay, type, duration):
             len(analyses[type]["userspace_events"]) > 0:
         try:
             ret = subprocess.check_output("%s %s@%s lttng enable-event -s %s -k %s" \
-                    % (ssh, username, host, name,
+                    % (ssh, username, host, session_name,
                         analyses[type]["userspace_events"]), shell=True)
         except subprocess.CalledProcessError:
             return "Enabling userspace events failed\n", 503
@@ -139,7 +145,7 @@ def launch_trace(host, username, relay, type, duration):
     # start the session
     try:
         ret = subprocess.check_output("%s %s@%s lttng start %s" \
-                % (ssh, username, host, name), shell=True)
+                % (ssh, username, host, session_name), shell=True)
     except subprocess.CalledProcessError:
         return "Session start error\n", 503
 
@@ -148,15 +154,32 @@ def launch_trace(host, username, relay, type, duration):
     # stop the session
     try:
         ret = subprocess.check_output("%s %s@%s lttng stop %s" \
-                % (ssh, username, host, name), shell=True)
+                % (ssh, username, host, session_name), shell=True)
     except subprocess.CalledProcessError:
         return "Session stop error\n", 503
     # destroy the session
     try:
         ret = subprocess.check_output("%s %s@%s lttng destroy %s" \
-                % (ssh, username, host, name), shell=True)
+                % (ssh, username, host, session_name), shell=True)
     except subprocess.CalledProcessError:
         return "Session destroy error\n", 503
+
+    return 0
+
+def launch_analysis(host, username):
+    global session_name
+    # This will be specified in the request eventually
+    script = "fd-info.py"
+    # These should probably become the default behaviour,
+    # or at least add some sort of daemon mode to analyses
+    args = "--quiet --mongo"
+
+    try:
+        ret = subprocess.check_output("%s %s@%s python3 %s%s %s %s%s*/kernel" \
+                % (ssh, username, host, PATH_ANALYSES, script, args,
+                   PATH_TRACES, session_name), shell=True)
+    except subprocess.CalledProcessError:
+        return "Analysis python script error\n", 503
 
     return 0
 
@@ -189,6 +212,9 @@ def start_analysis():
     if ret != 0:
         return ret
     ret = launch_trace(host, username, r, type, duration)
+    if ret != 0:
+        return ret
+    ret = launch_analysis(r, username)
     if ret != 0:
         return ret
 
