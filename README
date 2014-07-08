@@ -23,3 +23,6 @@ curl http://localhost:5000/trace/api/v1.0/servers
 
 To get the public ssh keys of the user that runs tracevisor :
 curl http://localhost:5000/trace/api/v1.0/ssh
+
+To list the current running sessions (the status comes from THREAD_*) :
+curl http://localhost:5000/trace/api/v1.0/list

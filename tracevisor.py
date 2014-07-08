@@ -3,6 +3,7 @@
 import os
 import subprocess
 import time
+import threading
 from flask import Flask
 from flask import request
 from flask import abort
@@ -13,27 +14,37 @@ app = Flask(__name__)
 appname = "Tracevisor"
 appversion = "1.0-alpha0"
 
-relay = "127.0.0.1"
-ssh = "ssh -oBatchMode=yes -oStrictHostKeyChecking=no -i ~/.ssh/id_rsa_tracevisor"
+class Tracevisor:
+    relay = "127.0.0.1"
+    ssh = "ssh -oBatchMode=yes -oStrictHostKeyChecking=no -i ~/.ssh/id_rsa_tracevisor"
 
-analyses = {}
+    analyses = {}
 
-analyses["cpu"] = {}
-analyses["cpu"]["kernel_events"] = "sched_switch,sched_process_fork,sched_process_exec," \
-        "lttng_statedump_process_state"
+    analyses["cpu"] = {}
+    analyses["cpu"]["kernel_events"] = "sched_switch,sched_process_fork,sched_process_exec," \
+            "lttng_statedump_process_state"
 
-analyses["io"] = {}
-analyses["io"]["kernel_events"] = "sched_switch,block_rq_complete,block_rq_issue," \
-        "block_bio_remap,block_bio_backmerge,netif_receive_skb," \
-        "net_dev_xmit,sched_process_fork,sched_process_exec," \
-        "lttng_statedump_process_state,lttng_statedump_file_descriptor," \
-        "lttng_statedump_block_device"
-analyses["io"]["syscalls"] = True
+    analyses["io"] = {}
+    analyses["io"]["kernel_events"] = "sched_switch,block_rq_complete,block_rq_issue," \
+            "block_bio_remap,block_bio_backmerge,netif_receive_skb," \
+            "net_dev_xmit,sched_process_fork,sched_process_exec," \
+            "lttng_statedump_process_state,lttng_statedump_file_descriptor," \
+            "lttng_statedump_block_device"
+    analyses["io"]["syscalls"] = True
 
-session_name = ""
-# Temporarily hardcoded
-PATH_ANALYSES = "/usr/local/src/lttng-analyses/"
-PATH_TRACES = "/root/lttng-traces/tracesd-0/"
+    # Temporarily hardcoded
+    PATH_ANALYSES = "/usr/local/src/lttng-analyses/"
+    PATH_TRACES = "/root/lttng-traces/tracesd-0/"
+
+    running_threads = {}
+    jobid = 0
+    THREAD_STARTED = 1
+    THREAD_TRACE_RUNNING = 2
+    THREAD_ANALYSIS_RUNNING = 3
+    THREAD_COMPLETE = 4
+    THREAD_ERROR = -1
+
+tracevisor = Tracevisor()
 
 @app.route('/')
 @crossdomain(origin='*')
@@ -43,7 +54,7 @@ def index():
 @app.route('/trace/api/v1.0/analyses', methods = ['GET'])
 @crossdomain(origin='*')
 def get_analyses():
-    return jsonify( { 'analyses': analyses } )
+    return jsonify( { 'analyses': tracevisor.analyses } )
 
 @app.route('/trace/api/v1.0/ssh', methods = ['GET'])
 @crossdomain(origin='*')
@@ -85,15 +96,15 @@ def check_requirements(host, username):
     # check SSH connection
     try:
         ret = subprocess.check_output("%s %s@%s id" \
-                % (ssh, username, host), shell=True)
+                % (tracevisor.ssh, username, host), shell=True)
     except subprocess.CalledProcessError:
         return "Cannot establish an ssh connection : %s %s@%s failed\n" \
-                % (ssh, username, host), 503
+                % (tracevisor.ssh, username, host), 503
 
     # check for a root sessiond
     try:
         ret = subprocess.check_output("%s %s@%s pgrep -u root lttng-sessiond" \
-                % (ssh, username, host), shell=True)
+                % (tracevisor.ssh, username, host), shell=True)
     except subprocess.CalledProcessError:
         return "Root lttng-sessiond not started\n", 503
 
@@ -101,51 +112,54 @@ def check_requirements(host, username):
     if username != "root":
         try:
             ret = subprocess.check_output("%s %s@%s groups|grep tracing" \
-                    % (ssh, username, host), shell=True)
+                    % (tracevisor.ssh, username, host), shell=True)
         except subprocess.CalledProcessError:
             return "User not in tracing group", 503
     return 0
 
-def launch_trace(host, username, relay, type, duration):
-    global session_name
-    session_name = "%s-%s-%s" % (appname, type, str(int(time.time())))
+def launch_trace(host, username, relay, type, duration, task):
+    task["session_name"] = "%s-%s-%s" % (appname, type, task["jobid"])
     # create the session
     try:
         ret = subprocess.check_output("%s %s@%s lttng create %s -U %s" \
-                % (ssh, username, host, session_name, "net://%s" % relay), shell=True)
+                % (tracevisor.ssh, username, host, task["session_name"], "net://%s" % relay), shell=True)
     except subprocess.CalledProcessError:
         return "Session creation error\n", 503
     # enable events
     events = ""
-    if "kernel_events" in analyses[type].keys() and \
-            len(analyses[type]["kernel_events"]) > 0:
+    if "kernel_events" in tracevisor.analyses[type].keys() and \
+            len(tracevisor.analyses[type]["kernel_events"]) > 0:
         try:
             ret = subprocess.check_output("%s %s@%s lttng enable-event -s %s -k %s" \
-                    % (ssh, username, host, session_name,
-                        analyses[type]["kernel_events"]), shell=True)
+                    % (tracevisor.ssh, username, host, task["session_name"],
+                        tracevisor.analyses[type]["kernel_events"]), shell=True)
         except subprocess.CalledProcessError:
             return "Enabling kernel events failed\n", 503
 
-    if "syscalls" in analyses[type].keys():
+    if "syscalls" in tracevisor.analyses[type].keys():
         try:
             ret = subprocess.check_output("%s %s@%s lttng enable-event -s %s -k --syscall -a" \
-                    % (ssh, username, host, session_name), shell=True)
+                    % (tracevisor.ssh, username, host, task["session_name"]), shell=True)
         except subprocess.CalledProcessError:
             return "Enabling syscalls failed\n", 503
 
-    if "userspace_events" in analyses[type].keys() and \
-            len(analyses[type]["userspace_events"]) > 0:
+    if "userspace_events" in tracevisor.analyses[type].keys() and \
+            len(tracevisor.analyses[type]["userspace_events"]) > 0:
         try:
             ret = subprocess.check_output("%s %s@%s lttng enable-event -s %s -k %s" \
-                    % (ssh, username, host, session_name,
-                        analyses[type]["userspace_events"]), shell=True)
+                    % (tracevisor.ssh, username, host, task["session_name"],
+                        tracevisor.analyses[type]["userspace_events"]), shell=True)
         except subprocess.CalledProcessError:
             return "Enabling userspace events failed\n", 503
+
+    task["lock"].acquire()
+    task["status"] = tracevisor.THREAD_TRACE_RUNNING
+    task["lock"].release()
 
     # start the session
     try:
         ret = subprocess.check_output("%s %s@%s lttng start %s" \
-                % (ssh, username, host, session_name), shell=True)
+                % (tracevisor.ssh, username, host, task["session_name"]), shell=True)
     except subprocess.CalledProcessError:
         return "Session start error\n", 503
 
@@ -154,20 +168,33 @@ def launch_trace(host, username, relay, type, duration):
     # stop the session
     try:
         ret = subprocess.check_output("%s %s@%s lttng stop %s" \
-                % (ssh, username, host, session_name), shell=True)
+                % (tracevisor.ssh, username, host, task["session_name"]), shell=True)
     except subprocess.CalledProcessError:
         return "Session stop error\n", 503
     # destroy the session
     try:
         ret = subprocess.check_output("%s %s@%s lttng destroy %s" \
-                % (ssh, username, host, session_name), shell=True)
+                % (tracevisor.ssh, username, host, task["session_name"]), shell=True)
     except subprocess.CalledProcessError:
         return "Session destroy error\n", 503
 
+    task["lock"].acquire()
+    task["status"] = tracevisor.THREAD_ANALYSIS_RUNNING
+    task["lock"].release()
+
+    ret = launch_analysis(task["relay"], username, task["session_name"])
+    if ret != 0:
+        task["lock"].acquire()
+        task["status"] = tracevisor.THREAD_ERROR
+        task["lock"].release()
+        return ret
+
+    task["lock"].acquire()
+    task["status"] = tracevisor.THREAD_COMPLETE
+    task["lock"].release()
     return 0
 
-def launch_analysis(host, username):
-    global session_name
+def launch_analysis(host, username, session_name):
     # This will be specified in the request eventually
     script = "fd-info.py"
     # These should probably become the default behaviour,
@@ -176,12 +203,45 @@ def launch_analysis(host, username):
 
     try:
         ret = subprocess.check_output("%s %s@%s python3 %s%s %s %s%s*/kernel" \
-                % (ssh, username, host, PATH_ANALYSES, script, args,
-                   PATH_TRACES, session_name), shell=True)
+                % (tracevisor.ssh, username, host, tracevisor.PATH_ANALYSES, script, args,
+                   tracevisor.PATH_TRACES, session_name), shell=True)
     except subprocess.CalledProcessError:
         return "Analysis python script error\n", 503
 
     return 0
+
+def cleanup_threads():
+    # get rid of the completed threads
+    # FIXME: only called from get_analyses_list for now, need a GC
+    to_delete = []
+    for s in tracevisor.running_threads.keys():
+        t =  tracevisor.running_threads[s]
+        t["lock"].acquire()
+        if t["status"] == tracevisor.THREAD_COMPLETE or \
+                t["status"] == tracevisor.THREAD_ERROR:
+            t["thread"].join()
+            to_delete.append(s)
+        t["lock"].release()
+
+    for d in to_delete:
+        del tracevisor.running_threads[d]
+
+@app.route('/trace/api/v1.0/list', methods = ['GET'])
+@crossdomain(origin='*')
+def get_analyses_list():
+    sessions = []
+    for s in tracevisor.running_threads.keys():
+        sess = {}
+        t =  tracevisor.running_threads[s]
+        sess["jobid"] = t["jobid"]
+        t["lock"].acquire()
+        sess["status"] = t["status"]
+        t["lock"].release()
+        sessions.append(sess)
+
+    cleanup_threads()
+    return jsonify( { 'sessions': sessions } )
+
 
 @app.route('/trace/api/v1.0/analyses', methods = ['POST', 'OPTIONS'])
 @crossdomain(origin='*', headers=['Content-Type'])
@@ -198,28 +258,34 @@ def start_analysis():
     if 'relay' in request.json:
         r = request.json["relay"]
     else:
-        r = relay
+        r = tracevisor.relay
 
     type = request.json["type"]
     duration = request.json["duration"]
     host = request.json["host"]
     username = request.json["username"]
 
-    if not type in analyses.keys():
+    if not type in tracevisor.analyses.keys():
         return "Unknown analysis type\n", 503
 
     ret = check_requirements(host, username)
     if ret != 0:
         return ret
-    ret = launch_trace(host, username, r, type, duration)
-    if ret != 0:
-        return ret
-    ret = launch_analysis(r, username)
-    if ret != 0:
-        return ret
 
-    return "Started %s analysis for %d seconds on host %s\n" % \
-            (type, duration, host)
+    tracevisor.jobid += 1
+    task = {}
+    task["status"] = tracevisor.THREAD_STARTED
+    task["lock"] = threading.Lock()
+    task["relay"] = r
+    task["jobid"] = tracevisor.jobid
+    t = threading.Thread(name='trace', target=launch_trace,
+            args=(host, username, r, type, duration, task))
+    task["thread"] = t
+    tracevisor.running_threads[tracevisor.jobid] = task
+    t.start()
+
+    return "Started %s analysis for %d seconds on host %s, jobid = %d\n" % \
+            (type, duration, host, tracevisor.jobid)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug = True)
