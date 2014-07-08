@@ -229,6 +229,7 @@ def cleanup_threads():
 @app.route('/trace/api/v1.0/list', methods = ['GET'])
 @crossdomain(origin='*')
 def get_analyses_list():
+    cleanup_threads()
     sessions = []
     for s in tracevisor.running_threads.keys():
         sess = {}
@@ -239,7 +240,6 @@ def get_analyses_list():
         t["lock"].release()
         sessions.append(sess)
 
-    cleanup_threads()
     return jsonify( { 'sessions': sessions } )
 
 
