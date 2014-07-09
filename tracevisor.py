@@ -56,7 +56,14 @@ def index():
 @app.route('/trace/api/v1.0/analyses', methods = ['GET'])
 @crossdomain(origin='*')
 def get_analyses():
-    return jsonify( { 'analyses': tracevisor.analyses } )
+    analysesList = []
+
+    for k in tracevisor.analyses:
+        analysesList.append({
+            "analysis": k
+        })
+
+    return Response(json.dumps(analysesList), mimetype="application/json")
 
 @app.route('/trace/api/v1.0/ssh', methods = ['GET'])
 @crossdomain(origin='*')
