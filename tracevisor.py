@@ -1,10 +1,12 @@
 #!/usr/bin/python3
 
+import json
 import os
 import subprocess
 import time
 import threading
 from flask import Flask
+from flask import Response
 from flask import request
 from flask import abort
 from flask import jsonify
@@ -90,7 +92,8 @@ def get_server_list():
         elif l[2] == "IPv6":
             d["ipv6"] = l[7]
         servers.append(d)
-    return jsonify({ 'servers': servers })
+
+    return Response(json.dumps(servers), mimetype="application/json")
 
 def check_requirements(host, username):
     # check SSH connection
