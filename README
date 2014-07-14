@@ -27,7 +27,7 @@ curl http://localhost:5000/trace/api/v1.0/ssh
 To list the current running sessions (the status comes from THREAD_*) :
 curl http://localhost:5000/trace/api/v1.0/list
 
-To register a new relay (fields: name, ipv4, ipv6, ctrlport, dataport):
+To register (or update) a relay (fields: name, ipv4, ipv6, ctrlport, dataport):
 curl -i -H "Content-Type: application/json" -X POST -d '{"name": "myhostname", "ipv6":"fe80::1" }' http://localhost:5000/trace/api/v1.0/add_relay
 
 To list the relays registered :
