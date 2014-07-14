@@ -46,7 +46,7 @@ class Tracevisor:
     def get_analyses(self):
         analysesList = []
 
-        for k in tracevisor.analyses:
+        for k in self.analyses:
             analysesList.append({
                 "analysis": k
             })
@@ -110,15 +110,15 @@ class Tracevisor:
         # check SSH connection
         try:
             ret = subprocess.check_output("%s %s@%s id" \
-                    % (tracevisor.ssh, username, host), shell=True)
+                    % (self.ssh, username, host), shell=True)
         except subprocess.CalledProcessError:
             return "Cannot establish an ssh connection : %s %s@%s failed\n" \
-                    % (tracevisor.ssh, username, host), 503
+                    % (self.ssh, username, host), 503
 
         # check for a root sessiond
         try:
             ret = subprocess.check_output("%s %s@%s pgrep -u root lttng-sessiond" \
-                    % (tracevisor.ssh, username, host), shell=True)
+                    % (self.ssh, username, host), shell=True)
         except subprocess.CalledProcessError:
             return "Root lttng-sessiond not started\n", 503
 
@@ -126,7 +126,7 @@ class Tracevisor:
         if username != "root":
             try:
                 ret = subprocess.check_output("%s %s@%s groups|grep tracing" \
-                        % (tracevisor.ssh, username, host), shell=True)
+                        % (self.ssh, username, host), shell=True)
             except subprocess.CalledProcessError:
                 return "User not in tracing group", 503
         return 0
@@ -227,17 +227,17 @@ class Tracevisor:
         # get rid of the completed threads
         # FIXME: only called from get_analyses_list for now, need a GC
         to_delete = []
-        for s in tracevisor.running_threads.keys():
-            t =  tracevisor.running_threads[s]
+        for s in self.running_threads.keys():
+            t =  self.running_threads[s]
             t["lock"].acquire()
-            if t["status"] == tracevisor.THREAD_COMPLETE or \
-                    t["status"] == tracevisor.THREAD_ERROR:
+            if t["status"] == self.THREAD_COMPLETE or \
+                    t["status"] == self.THREAD_ERROR:
                 t["thread"].join()
                 to_delete.append(s)
             t["lock"].release()
 
         for d in to_delete:
-            del tracevisor.running_threads[d]
+            del self.running_threads[d]
 
     def get_analyses_list(self):
         self.cleanup_threads()
@@ -265,33 +265,33 @@ class Tracevisor:
         if 'relay' in request.json:
             r = request.json["relay"]
         else:
-            r = tracevisor.relay
+            r = self.relay
 
         type = request.json["type"]
         duration = request.json["duration"]
         host = request.json["host"]
         username = request.json["username"]
 
-        if not type in tracevisor.analyses.keys():
+        if not type in self.analyses.keys():
             return "Unknown analysis type\n", 503
 
         ret = self.check_requirements(host, username)
         if ret != 0:
             return ret
 
-        tracevisor.jobid += 1
+        self.jobid += 1
         task = {}
-        task["status"] = tracevisor.THREAD_STARTED
+        task["status"] = self.THREAD_STARTED
         task["lock"] = threading.Lock()
         task["relay"] = r
-        task["jobid"] = tracevisor.jobid
+        task["jobid"] = self.jobid
         t = threading.Thread(name='trace', target=self.launch_trace,
                 args=(host, username, r, type, duration, task))
         task["thread"] = t
-        tracevisor.running_threads[tracevisor.jobid] = task
+        self.running_threads[self.jobid] = task
         t.start()
         return "Started %s analysis for %d seconds on host %s, jobid = %d\n" % \
-                (type, duration, host, tracevisor.jobid)
+                (type, duration, host, self.jobid)
 
 app = Flask(__name__)
 appname = "Tracevisor"
