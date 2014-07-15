@@ -110,28 +110,6 @@ class Tracevisor:
             servers.append(d)
         return Response(json.dumps(servers), mimetype="application/json")
 
-    def get_server_list(self):
-        try:
-            ret = subprocess.check_output("avahi-browse _lttng._tcp -p -t -r", shell=True)
-        except subprocess.CalledProcessError:
-            return "Error running avahi-browse _lttng._tcp -p -t", 503
-
-        servers = []
-        lines = str(ret, encoding='utf8').split("\n")
-        for entry in lines:
-            l = entry.split(";")
-            # only output "resolved" entries
-            if l[0] != "=":
-                continue
-            d = {}
-            d["hostname"] = l[3]
-            if l[2] == "IPv4":
-                d["ipv4"] = l[7]
-            elif l[2] == "IPv6":
-                d["ipv6"] = l[7]
-            servers.append(d)
-        return Response(json.dumps(servers), mimetype="application/json")
-
     def check_requirements(self, host, username):
         # check SSH connection
         try:
