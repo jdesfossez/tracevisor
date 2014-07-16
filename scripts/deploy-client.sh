@@ -48,8 +48,8 @@ cat > /etc/init/avahi-publish-lttng.conf << EOF
 start on (started lttng-sessiond and started avahi-daemon)
 stop on stopping lttng-sessiond
 script
-	HOSTNAME=`hostname -s`
-	avahi-publish -s $HOSTNAME _lttng._tcp 0
+	HOSTNAME=\`hostname -s\`
+	avahi-publish -s \$HOSTNAME _lttng._tcp 0
 end script
 EOF
 
