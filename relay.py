@@ -1,5 +1,6 @@
 import sqlite3
 from tracevisor import *
+from client import *
 
 class Relay(Tracevisor):
     def __init__(self):
@@ -15,7 +16,7 @@ class Relay(Tracevisor):
             r = cur.fetchall()
             for i in r:
                 relay = {}
-                relay["name"] = i[0]
+                relay["hostname"] = i[0]
                 relay["ipv4"] = i[1]
                 relay["ipv6"] = i[2]
                 relay["ctrlport"] = i[3]
@@ -25,12 +26,12 @@ class Relay(Tracevisor):
         self.disconnect_db()
         return resp
 
-    def get_relay(self, cur, name):
+    def get_relay(self, cur, hostname):
         relay = {}
-        cur.execute("SELECT * FROM relays WHERE name=:name", {"name": name})
+        cur.execute("SELECT * FROM relays WHERE hostname=:hostname", {"hostname": hostname})
         rq = cur.fetchall()
         if rq:
-            relay["name"] = rq[0][0]
+            relay["hostname"] = rq[0][0]
             relay["ipv4"] = rq[0][1]
             relay["ipv6"] = rq[0][2]
             relay["ctrlport"] = rq[0][3]
@@ -39,37 +40,37 @@ class Relay(Tracevisor):
         return None
 
     def insert_relay(self, cur, fields):
-        cur.execute("SELECT * FROM relays WHERE name=:name", fields)
+        cur.execute("SELECT * FROM relays WHERE hostname=:hostname", fields)
         rq = cur.fetchall()
         if rq:
             cur.execute("UPDATE relays SET ipv4=:ipv4, ipv6=:ipv6, "
-                    "ctrlport=:ctrlport, dataport=:dataport WHERE name=:name", fields)
+                    "ctrlport=:ctrlport, dataport=:dataport WHERE hostname=:hostname", fields)
         else:
             cur.execute("INSERT INTO relays VALUES(?,?,?,?,?)",
-                    (fields["name"], fields["ipv4"], fields["ipv6"], fields["ctrlport"],
+                    (fields["hostname"], fields["ipv4"], fields["ipv6"], fields["ctrlport"],
                         fields["dataport"]))
 
     def delete_relay(self):
-        params = ['name']
+        params = ['hostname']
         if not request.json:
             abort(400)
         # mandatory parameters
         for p in params:
             if not p in request.json:
                 abort(400)
-        name = request.json["name"]
+        hostname = request.json["hostname"]
 
         self.connect_db()
         cur = self.con.cursor()
         with self.con:
-            r = self.get_relay(cur, name)
+            r = self.get_relay(cur, hostname)
             if r:
-                cur.execute("DELETE FROM relays WHERE name=:name", {"name":name})
+                cur.execute("DELETE FROM relays WHERE hostname=:hostname", {"hostname":hostname})
         self.disconnect_db()
         return "Done"
 
     def add_relay(self):
-        params = ['name']
+        params = ['hostname']
         if not request.json:
             abort(400)
         # mandatory parameters
@@ -82,11 +83,11 @@ class Relay(Tracevisor):
         self.connect_db()
         with self.con:
             cur = self.con.cursor()
-            name = request.json["name"]
-            rq = self.get_relay(cur, name)
+            hostname = request.json["hostname"]
+            rq = self.get_relay(cur, hostname)
             if not rq:
                 rq = {}
-                rq["name"] = name
+                rq["hostname"] = hostname
                 rq["ipv4"] = ""
                 rq["ipv6"] = ""
                 rq["ctrlport"] = 5342
@@ -102,4 +103,4 @@ class Relay(Tracevisor):
             self.insert_relay(cur, rq)
 
         self.disconnect_db()
-        return "Done"
+        return "Done\n"

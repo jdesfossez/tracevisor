@@ -46,6 +46,7 @@ class Tracevisor:
         self.running_threads = {}
         self.jobid = 0
         self.relay = Relay()
+        self.client = Client()
 
     def connect_db(self):
         self.con = sqlite3.connect("config.db")
@@ -61,15 +62,15 @@ class Tracevisor:
                 cur.execute("select * from relays")
             except sqlite3.OperationalError:
                 print("Creating \"relays\" table")
-                cur.execute("CREATE TABLE relays (name TEXT, ipv4 TEXT,"
+                cur.execute("CREATE TABLE relays (hostname TEXT, ipv4 TEXT,"
                     "ipv6 TEXT, ctrlport INT, dataport INT)")
 
             try:
-                cur.execute("select * from servers")
+                cur.execute("select * from clients")
             except sqlite3.OperationalError:
-                print("Creating \"servers\" table")
-                cur.execute("CREATE TABLE servers (name TEXT, "
-                    "ipv4 TEXT, ipv6 TEXT, sshport INT)")
+                print("Creating \"clients\" table")
+                cur.execute("CREATE TABLE clients (hostname TEXT, "
+                    "ipv4 TEXT, ipv6 TEXT, sshport INT, sshuser TEXT)")
         self.disconnect_db()
 
     def get_analyses(self):
@@ -92,17 +93,27 @@ class Tracevisor:
         return jsonify({ 'keys': keys })
 
     def get_server_list(self):
+        server_list = []
+        servers = {}
+        # get the list from the database
+        registered_clients = tracevisor.client.get_clients_list()
+        for i in registered_clients:
+            servers[i["hostname"]] = i
+
+        # get the list from DNS-SD
         try:
             ret = subprocess.check_output("avahi-browse _lttng._tcp -p -t -r", shell=True)
         except subprocess.CalledProcessError:
             return "Error running avahi-browse _lttng._tcp -p -t", 503
 
-        servers = []
         lines = str(ret, encoding='utf8').split("\n")
         for entry in lines:
             l = entry.split(";")
             # only output "resolved" entries
             if l[0] != "=":
+                continue
+            # avoid duplicates based on the hostname
+            if l[3] in servers.keys():
                 continue
             d = {}
             d["hostname"] = l[3]
@@ -110,8 +121,11 @@ class Tracevisor:
                 d["ipv4"] = l[7]
             elif l[2] == "IPv6":
                 d["ipv6"] = l[7]
-            servers.append(d)
-        return Response(json.dumps(servers), mimetype="application/json")
+            servers[d["hostname"]] = d
+
+        for i in servers.keys():
+            server_list.append(servers[i])
+        return Response(json.dumps(server_list), mimetype="application/json")
 
     def check_requirements(self, host, username):
         # check SSH connection
@@ -143,7 +157,8 @@ class Tracevisor:
         # create the session
         try:
             ret = subprocess.check_output("%s %s@%s lttng create %s -U %s" \
-                    % (self.ssh, username, host, task["session_name"], "net://%s" % relay), shell=True)
+                    % (self.ssh, username, host, task["session_name"],
+                        "net://%s" % relay), shell=True)
         except subprocess.CalledProcessError:
             return "Session creation error\n", 503
         # enable events
@@ -348,6 +363,16 @@ def delete_relay():
 @crossdomain(origin='*')
 def get_relays_list():
     return tracevisor.relay.get_relays_list()
+
+@app.route('/trace/api/v1.0/add_client', methods = ['POST', 'OPTIONS'])
+@crossdomain(origin='*', headers=['Content-Type'])
+def add_client():
+    return tracevisor.client.add_client()
+
+@app.route('/trace/api/v1.0/delete_client', methods = ['POST', 'OPTIONS'])
+@crossdomain(origin='*', headers=['Content-Type'])
+def delete_client():
+    return tracevisor.client.delete_client()
 
 if __name__ == '__main__':
     tracevisor = Tracevisor()
