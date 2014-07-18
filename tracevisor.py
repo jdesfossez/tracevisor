@@ -187,7 +187,8 @@ class Tracevisor:
         return 0
 
     def launch_trace(self, host, username, relay, type, duration, task):
-        task["session_name"] = "%s-%s-%s" % (appname, type, task["jobid"])
+        task["session_name"] = "%s-%s-%s-%s" % (appname, type,
+                str(int(time.time())), task["jobid"])
         # get the target hostname
         try:
             ret = subprocess.check_output("%s %s@%s hostname -s" \
