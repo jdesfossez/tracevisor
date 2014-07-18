@@ -395,6 +395,20 @@ def get_ssh_keys():
 def get_server_list():
     return tracevisor.get_server_list()
 
+@app.route('/trace/api/v1.0/relays', methods = ['GET'])
+@crossdomain(origin='*')
+def get_relays_list():
+    return tracevisor.relay.get_relays_list()
+
+@app.route('/trace/api/v1.0/relays', methods = ['POST', 'OPTIONS'])
+@crossdomain(origin='*', headers=['Content-Type'])
+def add_relay():
+    return tracevisor.relay.add_relay()
+
+@app.route('/trace/api/v1.0/relays', methods = ['DELETE', 'OPTIONS'])
+@crossdomain(origin='*', headers=['Content-Type'])
+def delete_relay():    return tracevisor.relay.delete_relay()
+
 @app.route('/trace/api/v1.0/list', methods = ['GET'])
 @crossdomain(origin='*')
 def get_analyses_list():
@@ -405,27 +419,12 @@ def get_analyses_list():
 def start_analysis():
     return tracevisor.start_analysis()
 
-@app.route('/trace/api/v1.0/add_relay', methods = ['POST', 'OPTIONS'])
-@crossdomain(origin='*', headers=['Content-Type'])
-def add_relay():
-    return tracevisor.relay.add_relay()
-
-@app.route('/trace/api/v1.0/delete_relay', methods = ['POST', 'OPTIONS'])
-@crossdomain(origin='*', headers=['Content-Type'])
-def delete_relay():
-    return tracevisor.relay.delete_relay()
-
-@app.route('/trace/api/v1.0/list_relays', methods = ['GET'])
-@crossdomain(origin='*')
-def get_relays_list():
-    return tracevisor.relay.get_relays_list()
-
-@app.route('/trace/api/v1.0/add_client', methods = ['POST', 'OPTIONS'])
+@app.route('/trace/api/v1.0/clients', methods = ['POST', 'OPTIONS'])
 @crossdomain(origin='*', headers=['Content-Type'])
 def add_client():
     return tracevisor.client.add_client()
 
-@app.route('/trace/api/v1.0/delete_client', methods = ['POST', 'OPTIONS'])
+@app.route('/trace/api/v1.0/clients', methods = ['DELETE', 'OPTIONS'])
 @crossdomain(origin='*', headers=['Content-Type'])
 def delete_client():
     return tracevisor.client.delete_client()
