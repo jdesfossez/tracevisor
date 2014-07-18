@@ -23,7 +23,7 @@ class Tracevisor:
     THREAD_ERROR = -1
     # Temporarily hardcoded
     PATH_ANALYSES = "/usr/local/src/lttng-analyses/"
-    PATH_TRACES = "/root/lttng-traces/tracesd-0/"
+    PATH_TRACES = "/root/lttng-traces/"
     DBVERSION = 1
 
     def __init__(self):
@@ -188,6 +188,14 @@ class Tracevisor:
 
     def launch_trace(self, host, username, relay, type, duration, task):
         task["session_name"] = "%s-%s-%s" % (appname, type, task["jobid"])
+        # get the target hostname
+        try:
+            ret = subprocess.check_output("%s %s@%s hostname -s" \
+                    % (self.ssh, username, host), shell=True)
+        except subprocess.CalledProcessError:
+            return "Failed to get the hostname\n", 503
+        hostname = ret.decode().strip()
+
         # create the session
         try:
             ret = subprocess.check_output("%s %s@%s lttng create %s -U %s" \
@@ -252,7 +260,7 @@ class Tracevisor:
         task["status"] = self.THREAD_ANALYSIS_RUNNING
         task["lock"].release()
 
-        ret = self.launch_analysis(task["analysis"], username,
+        ret = self.launch_analysis(task["analysis"], username,  hostname,
                 task["session_name"], type, task["mongohost"], task["mongoport"])
         if ret != 0:
             task["lock"].acquire()
@@ -265,7 +273,7 @@ class Tracevisor:
         task["lock"].release()
         return 0
 
-    def launch_analysis(self, host, username, session_name, type, mongohost,
+    def launch_analysis(self, host, username, hostname, session_name, type, mongohost,
             mongoport):
         if not "script" in self.analyses[type].keys() or \
                 not "args" in self.analyses[type].keys():
@@ -273,9 +281,9 @@ class Tracevisor:
         script = self.analyses[type]["script"]
         args = self.analyses[type]["args"]
         try:
-            ret = subprocess.check_output("%s %s@%s python3 %s%s %s %s:%s %s%s*/kernel" \
+            ret = subprocess.check_output("%s %s@%s python3 %s%s %s %s:%s %s/%s/%s*/kernel" \
                     % (self.ssh, username, host, self.PATH_ANALYSES, script, args,
-                        mongohost, mongoport, self.PATH_TRACES, session_name),
+                        mongohost, mongoport, self.PATH_TRACES, hostname, session_name),
                     shell=True)
         except subprocess.CalledProcessError:
             return "Analysis python script error\n", 503
