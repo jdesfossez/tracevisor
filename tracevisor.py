@@ -28,6 +28,8 @@ class Tracevisor:
 
     def __init__(self):
         self.default_relay = "127.0.0.1"
+        self.default_mongohost = "127.0.0.1"
+        self.default_mongoport = 27017
         self.ssh = "ssh -oBatchMode=yes -oStrictHostKeyChecking=no -i ~/.ssh/id_rsa_tracevisor"
 
         self.analyses = {}
@@ -251,7 +253,7 @@ class Tracevisor:
         task["lock"].release()
 
         ret = self.launch_analysis(task["analysis"], username,
-                task["session_name"], type)
+                task["session_name"], type, task["mongohost"], task["mongoport"])
         if ret != 0:
             task["lock"].acquire()
             task["status"] = self.THREAD_ERROR
@@ -263,16 +265,18 @@ class Tracevisor:
         task["lock"].release()
         return 0
 
-    def launch_analysis(self, host, username, session_name, type):
+    def launch_analysis(self, host, username, session_name, type, mongohost,
+            mongoport):
         if not "script" in self.analyses[type].keys() or \
                 not "args" in self.analyses[type].keys():
                     return "Missing analyses script or args\n", 503
         script = self.analyses[type]["script"]
         args = self.analyses[type]["args"]
         try:
-            ret = subprocess.check_output("%s %s@%s python3 %s%s %s %s%s*/kernel" \
+            ret = subprocess.check_output("%s %s@%s python3 %s%s %s %s:%s %s%s*/kernel" \
                     % (self.ssh, username, host, self.PATH_ANALYSES, script, args,
-                       self.PATH_TRACES, session_name), shell=True)
+                        mongohost, mongoport, self.PATH_TRACES, session_name),
+                    shell=True)
         except subprocess.CalledProcessError:
             return "Analysis python script error\n", 503
         return 0
@@ -328,6 +332,16 @@ class Tracevisor:
         else:
             a = r
 
+        if 'mongohost' in request.json:
+            mongohost = request.json["mongohost"]
+        else:
+            mongohost = self.default_mongohost
+
+        if 'mongoport' in request.json:
+            mongoport = request.json["mongoport"]
+        else:
+            mongoport = self.default_mongoport
+
         type = request.json["type"]
         duration = request.json["duration"]
         host = request.json["host"]
@@ -346,6 +360,8 @@ class Tracevisor:
         task["lock"] = threading.Lock()
         task["relay"] = r
         task["analysis"] = a
+        task["mongohost"] = mongohost
+        task["mongoport"] = mongoport
         task["jobid"] = self.jobid
         t = threading.Thread(name='trace', target=self.launch_trace,
                 args=(host, username, r, type, duration, task))
