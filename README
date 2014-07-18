@@ -7,11 +7,11 @@ Requirements:
 - lttng-sessiond is started as root on the target machine
 - the remote user is root or in tracing group
 
-To start an I/O analysis on host "localhost" as user "julien" for 2 seconds:
+To start an I/O analysis on host "localhost" as user "root" for 2 seconds:
 curl -i -H "Content-Type: application/json" -X POST -d '{"host":"localhost", "duration":2, "type":"io", "username":"root"}' http://localhost:5000/trace/api/v1.0/analyses
 
-You can also specify the relay address :
-curl -i -H "Content-Type: application/json" -X POST -d '{"host":"localhost", "duration":2, "type":"io", "username":"root", "relay":"localhost"}' http://localhost:5000/trace/api/v1.0/analyses
+You can also specify the relay address and the analysis server :
+curl -i -H "Content-Type: application/json" -X POST -d '{"host":"localhost", "duration":2, "type":"io", "username":"root", "relay":"localhost", "analysis":"localhost"}' http://localhost:5000/trace/api/v1.0/analyses
 
 The request only returns when the trace is completed.
 

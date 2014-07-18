@@ -24,6 +24,7 @@ class Tracevisor:
     # Temporarily hardcoded
     PATH_ANALYSES = "/usr/local/src/lttng-analyses/"
     PATH_TRACES = "/root/lttng-traces/tracesd-0/"
+    DBVERSION = 1
 
     def __init__(self):
         self.default_relay = "127.0.0.1"
@@ -42,6 +43,8 @@ class Tracevisor:
                 "lttng_statedump_process_state,lttng_statedump_file_descriptor," \
                 "lttng_statedump_block_device"
         self.analyses["io"]["syscalls"] = True
+        self.analyses["io"]["script"] = "fd-info.py"
+        self.analyses["io"]["args"] = "--quiet --mongo"
 
         self.running_threads = {}
         self.jobid = 0
@@ -54,10 +57,39 @@ class Tracevisor:
     def disconnect_db(self):
         self.con.close()
 
+    def drop_all_tables(self, cur):
+        try:
+            cur.execute("DROP TABLE schema")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cur.execute("DROP TABLE relays")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cur.execute("DROP TABLE clients")
+        except sqlite3.OperationalError:
+            pass
+
     def check_db(self):
         self.connect_db()
         with self.con:
             cur = self.con.cursor()
+            try:
+                cur.execute("SELECT version FROM schema")
+            except sqlite3.OperationalError:
+                print("Creating database")
+                self.drop_all_tables(cur)
+                cur.execute("CREATE TABLE schema (version INT)")
+                cur.execute("INSERT INTO schema VALUES(:version)", ({"version": self.DBVERSION}))
+            r = cur.fetchall()
+            if r:
+                if r[0][0] != self.DBVERSION:
+                    print("Different DB version, resetting the database")
+                    self.drop_all_tables(cur)
+                    cur.execute("CREATE TABLE schema (version INT)")
+                    cur.execute("INSERT INTO schema VALUES(:version)", ({"version": self.DBVERSION}))
+
             try:
                 cur.execute("select * from relays")
             except sqlite3.OperationalError:
@@ -218,7 +250,8 @@ class Tracevisor:
         task["status"] = self.THREAD_ANALYSIS_RUNNING
         task["lock"].release()
 
-        ret = self.launch_analysis(task["relay"], username, task["session_name"])
+        ret = self.launch_analysis(task["analysis"], username,
+                task["session_name"], type)
         if ret != 0:
             task["lock"].acquire()
             task["status"] = self.THREAD_ERROR
@@ -230,13 +263,12 @@ class Tracevisor:
         task["lock"].release()
         return 0
 
-    def launch_analysis(self, host, username, session_name):
-        # This will be specified in the request eventually
-        script = "fd-info.py"
-        # These should probably become the default behaviour,
-        # or at least add some sort of daemon mode to analyses
-        args = "--quiet --mongo"
-
+    def launch_analysis(self, host, username, session_name, type):
+        if not "script" in self.analyses[type].keys() or \
+                not "args" in self.analyses[type].keys():
+                    return "Missing analyses script or args\n", 503
+        script = self.analyses[type]["script"]
+        args = self.analyses[type]["args"]
         try:
             ret = subprocess.check_output("%s %s@%s python3 %s%s %s %s%s*/kernel" \
                     % (self.ssh, username, host, self.PATH_ANALYSES, script, args,
@@ -289,6 +321,13 @@ class Tracevisor:
         else:
             r = self.default_relay
 
+        # override the analysis server in the request
+        # by default, take the same address as the relay
+        if 'analysis' in request.json:
+            a = request.json["analysis"]
+        else:
+            a = r
+
         type = request.json["type"]
         duration = request.json["duration"]
         host = request.json["host"]
@@ -306,6 +345,7 @@ class Tracevisor:
         task["status"] = self.THREAD_STARTED
         task["lock"] = threading.Lock()
         task["relay"] = r
+        task["analysis"] = a
         task["jobid"] = self.jobid
         t = threading.Thread(name='trace', target=self.launch_trace,
                 args=(host, username, r, type, duration, task))
