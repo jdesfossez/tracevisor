@@ -62,4 +62,4 @@ else
 	ipv6=$(ip -6 route get ${TRACEVISORIP} 2>/dev/null | grep dev | awk '{print $5}')
 fi
 
-curl -i -H "Content-Type: application/json" -X POST -d "{\"name\": \"$HOSTNAME\", \"ipv4\":\"$ipv4\", \"ipv6\":\"$ipv6\" }" http://${TRACEVISORIP}:${TRACEVISORPORT}/trace/api/v1.0/add_relay
+curl -i -H "Content-Type: application/json" -X POST -d "{\"hostname\": \"$HOSTNAME\", \"ipv4\":\"$ipv4\", \"ipv6\":\"$ipv6\" }" http://${TRACEVISORIP}:${TRACEVISORPORT}/trace/api/v1.0/add_relay

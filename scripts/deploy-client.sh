@@ -58,3 +58,20 @@ restart lttng-sessiond
 
 mkdir -p ~/.ssh
 curl -s http://${TRACEVISORIP}:${TRACEVISORPORT}/trace/api/v1.0/ssh|grep tracevisor | cut -d '"' -f2 | cut -d "\\" -f1 >> ~/.ssh/authorized_keys2
+# check if we have to use the gateway ("via" keyword)
+ip -4 route get ${TRACEVISORIP} 2>/dev/null | grep via >/dev/null
+if test $? = 0; then
+	ipv4=$(ip -4 route get ${TRACEVISORIP} 2>/dev/null | grep dev | awk '{print $7}')
+else
+	ipv4=$(ip -4 route get ${TRACEVISORIP} 2>/dev/null | grep dev | awk '{print $5}')
+fi
+
+# check if we have to use the gateway ("via" keyword)
+ip -6 route get ${TRACEVISORIP} 2>/dev/null | grep via >/dev/null
+if test $? = 0; then
+	ipv6=$(ip -6 route get ${TRACEVISORIP} 2>/dev/null | grep dev | awk '{print $7}')
+else
+	ipv6=$(ip -6 route get ${TRACEVISORIP} 2>/dev/null | grep dev | awk '{print $5}')
+fi
+
+curl -i -H "Content-Type: application/json" -X POST -d "{\"hostname\": \"$HOSTNAME\", \"ipv4\":\"$ipv4\", \"ipv6\":\"$ipv6\" }" http://${TRACEVISORIP}:${TRACEVISORPORT}/trace/api/v1.0/add_client
