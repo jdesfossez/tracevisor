@@ -155,6 +155,8 @@ class Tracevisor:
                 d["ipv4"] = l[7]
             elif l[2] == "IPv6":
                 d["ipv6"] = l[7]
+            # the auto-discovered clients cannot be accessed with the REST URL
+            d["id"] = -1
             servers[d["hostname"]] = d
 
         for i in servers.keys():
@@ -415,6 +417,11 @@ def start_analysis():
 def get_relays_list():
     return tracevisor.relay.get_relays_list()
 
+@app.route('/trace/api/v1.0/relays/<int:relay_id>', methods = ['GET'])
+@crossdomain(origin='*')
+def get_relay(relay_id):
+    return tracevisor.relay.get_relay_id(relay_id)
+
 @app.route('/trace/api/v1.0/relays/<int:relay_id>', methods = ['PUT'])
 @crossdomain(origin='*')
 def update_relay(relay_id):
@@ -425,30 +432,36 @@ def update_relay(relay_id):
 def add_relay():
     return tracevisor.relay.add_relay()
 
-@app.route('/trace/api/v1.0/relays', methods = ['DELETE', 'OPTIONS'])
+@app.route('/trace/api/v1.0/relays/<int:relay_id>', methods = ['DELETE', 'OPTIONS'])
 @crossdomain(origin='*', headers=['Content-Type'])
-def delete_relay():    return tracevisor.relay.delete_relay()
-
-@app.route('/trace/api/v1.0/relays/<int:relay_id>', methods = ['GET'])
-@crossdomain(origin='*')
-def get_relay(relay_id):
-    return tracevisor.relay.get_relay_id(relay_id)
+def delete_relay(relay_id):
+    return tracevisor.relay.delete_relay(relay_id)
 
 # clients
-@app.route('/trace/api/v1.0/servers', methods = ['GET'])
+@app.route('/trace/api/v1.0/clients', methods = ['GET'])
 @crossdomain(origin='*')
 def get_server_list():
     return tracevisor.get_server_list()
+
+@app.route('/trace/api/v1.0/clients/<int:client_id>', methods = ['GET'])
+@crossdomain(origin='*')
+def get_client(client_id):
+    return tracevisor.client.get_client_id(client_id)
+
+@app.route('/trace/api/v1.0/clients/<int:client_id>', methods = ['PUT'])
+@crossdomain(origin='*')
+def update_client(client_id):
+    return tracevisor.client.update_client(client_id)
 
 @app.route('/trace/api/v1.0/clients', methods = ['POST', 'OPTIONS'])
 @crossdomain(origin='*', headers=['Content-Type'])
 def add_client():
     return tracevisor.client.add_client()
 
-@app.route('/trace/api/v1.0/clients', methods = ['DELETE', 'OPTIONS'])
+@app.route('/trace/api/v1.0/clients/<int:client_id>', methods = ['DELETE', 'OPTIONS'])
 @crossdomain(origin='*', headers=['Content-Type'])
-def delete_client():
-    return tracevisor.client.delete_client()
+def delete_client(client_id):
+    return tracevisor.client.delete_client(client_id)
 
 if __name__ == '__main__':
     tracevisor = Tracevisor()

@@ -61,22 +61,11 @@ class Relay(Tracevisor):
         r = cur.fetchall()
         return r[0][0]
 
-    def delete_relay(self):
-        params = ['hostname']
-        if not request.json:
-            abort(400)
-        # mandatory parameters
-        for p in params:
-            if not p in request.json:
-                abort(400)
-        hostname = request.json["hostname"]
-
+    def delete_relay(self, relay_id):
         self.connect_db()
         cur = self.con.cursor()
         with self.con:
-            r = self.get_relay(cur, hostname)
-            if r:
-                cur.execute("DELETE FROM relays WHERE hostname=:hostname", {"hostname":hostname})
+            cur.execute("DELETE FROM relays WHERE id=:id", {"id":relay_id})
         self.disconnect_db()
         return "Done"
 
@@ -142,7 +131,6 @@ class Relay(Tracevisor):
         if "dataport" in request.json:
             relay["dataport"] = request.json["dataport"]
 
-        print("UPDATE", relay)
         cur.execute("UPDATE relays SET hostname=:hostname, ipv4=:ipv4, ipv6=:ipv6,"
                 "ctrlport=:ctrlport, dataport=:dataport WHERE id=:id", (relay))
         self.con.commit()

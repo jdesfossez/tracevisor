@@ -5,6 +5,16 @@ class Client(Tracevisor):
     def __init__(self):
         pass
 
+    def rq_to_client(self, rq):
+        client = {}
+        client["id"] = rq[0]
+        client["hostname"] = rq[1]
+        client["ipv4"] = rq[2]
+        client["ipv6"] = rq[3]
+        client["sshport"] = rq[4]
+        client["sshuser"] = rq[5]
+        return client
+
     def get_clients_list(self):
         clients = []
         resp = None
@@ -14,28 +24,29 @@ class Client(Tracevisor):
             cur.execute("SELECT * FROM clients")
             r = cur.fetchall()
             for i in r:
-                client = {}
-                client["hostname"] = i[0]
-                client["ipv4"] = i[1]
-                client["ipv6"] = i[2]
-                client["sshport"] = i[3]
-                client["sshuser"] = i[4]
-                clients.append(client)
+                clients.append(self.rq_to_client(i))
         self.disconnect_db()
         return clients
 
     def get_client(self, cur, hostname):
-        client = {}
         cur.execute("SELECT * FROM clients WHERE hostname=:hostname", {"hostname": hostname})
         rq = cur.fetchall()
         if rq:
-            client["hostname"] = rq[0][0]
-            client["ipv4"] = rq[0][1]
-            client["ipv6"] = rq[0][2]
-            client["sshport"] = rq[0][3]
-            client["sshuser"] = rq[0][4]
-            return client
+            return self.rq_to_client(rq[0])
         return None
+
+    def get_client_id(self, client_id):
+        self.connect_db()
+        with self.con:
+            cur = self.con.cursor()
+            cur.execute("SELECT * FROM clients WHERE id=:id", {"id": client_id})
+            rq = cur.fetchall()
+            if rq:
+                ret = Response(json.dumps(self.rq_to_client(rq[0])), mimetype="application/json")
+            else:
+                ret = "Unknown client ID %d\n" % client_id, 503
+        self.disconnect_db()
+        return ret
 
     def insert_client(self, cur, fields):
         cur.execute("SELECT * FROM clients WHERE hostname=:hostname", fields)
@@ -48,22 +59,11 @@ class Client(Tracevisor):
                     (fields["hostname"], fields["ipv4"], fields["ipv6"], fields["sshport"],
                         fields["sshuser"]))
 
-    def delete_client(self):
-        params = ['hostname']
-        if not request.json:
-            abort(400)
-        # mandatory parameters
-        for p in params:
-            if not p in request.json:
-                abort(400)
-        hostname = request.json["hostname"]
-
+    def delete_client(self, client_id):
         self.connect_db()
         cur = self.con.cursor()
         with self.con:
-            r = self.get_client(cur, hostname)
-            if r:
-                cur.execute("DELETE FROM clients WHERE hostname=:hostname", {"hostname":hostname})
+            cur.execute("DELETE FROM clients WHERE id=:id", {"id":client_id})
         self.disconnect_db()
         return "Done"
 
@@ -102,3 +102,32 @@ class Client(Tracevisor):
 
         self.disconnect_db()
         return "Done\n"
+
+    def update_client(self, client_id):
+        self.connect_db()
+        cur = self.con.cursor()
+        cur.execute("SELECT * FROM clients WHERE id=:id", {"id": client_id})
+        rq = cur.fetchall()
+        if not rq:
+            self.disconnect_db()
+            # get rid of the bogus client_id from the request
+            request.url = "/".join(request.url.split("/")[:-1])
+            return self.add_client()
+
+        client = self.rq_to_client(rq[0])
+        if "hostname" in request.json:
+            client["hostname"] = request.json["hostname"]
+        if "ipv4" in request.json:
+            client["ipv4"] = request.json["ipv4"]
+        if "ipv6" in request.json:
+            client["ipv6"] = request.json["ipv6"]
+        if "sshuser" in request.json:
+            client["sshuser"] = request.json["sshuser"]
+        if "sshport" in request.json:
+            client["sshport"] = request.json["sshport"]
+
+        cur.execute("UPDATE clients SET hostname=:hostname, ipv4=:ipv4, ipv6=:ipv6,"
+                "sshuser=:sshuser, sshport=:sshport WHERE id=:id", (client))
+        self.con.commit()
+        self.disconnect_db()
+        return "%s" % (request.url)
