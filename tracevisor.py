@@ -24,7 +24,7 @@ class Tracevisor:
     # Temporarily hardcoded
     PATH_ANALYSES = "/usr/local/src/lttng-analyses/"
     PATH_TRACES = "/root/lttng-traces/"
-    DBVERSION = 1
+    DBVERSION = 2
 
     def __init__(self):
         self.default_relay = "127.0.0.1"
@@ -96,14 +96,14 @@ class Tracevisor:
                 cur.execute("select * from relays")
             except sqlite3.OperationalError:
                 print("Creating \"relays\" table")
-                cur.execute("CREATE TABLE relays (hostname TEXT, ipv4 TEXT,"
+                cur.execute("CREATE TABLE relays (id INTEGER PRIMARY KEY, hostname TEXT, ipv4 TEXT,"
                     "ipv6 TEXT, ctrlport INT, dataport INT)")
 
             try:
                 cur.execute("select * from clients")
             except sqlite3.OperationalError:
                 print("Creating \"clients\" table")
-                cur.execute("CREATE TABLE clients (hostname TEXT, "
+                cur.execute("CREATE TABLE clients (id INTEGER PRIMARY KEY, hostname TEXT, "
                     "ipv4 TEXT, ipv6 TEXT, sshport INT, sshuser TEXT)")
         self.disconnect_db()
 
@@ -399,15 +399,26 @@ def get_analyses():
 def get_ssh_keys():
     return tracevisor.get_ssh_keys()
 
-@app.route('/trace/api/v1.0/servers', methods = ['GET'])
+@app.route('/trace/api/v1.0/list', methods = ['GET'])
 @crossdomain(origin='*')
-def get_server_list():
-    return tracevisor.get_server_list()
+def get_analyses_list():
+    return tracevisor.get_analyses_list()
 
+@app.route('/trace/api/v1.0/analyses', methods = ['POST', 'OPTIONS'])
+@crossdomain(origin='*', headers=['Content-Type'])
+def start_analysis():
+    return tracevisor.start_analysis()
+
+# relays
 @app.route('/trace/api/v1.0/relays', methods = ['GET'])
 @crossdomain(origin='*')
 def get_relays_list():
     return tracevisor.relay.get_relays_list()
+
+@app.route('/trace/api/v1.0/relays/<int:relay_id>', methods = ['PUT'])
+@crossdomain(origin='*')
+def update_relay(relay_id):
+    return tracevisor.relay.update_relay(relay_id)
 
 @app.route('/trace/api/v1.0/relays', methods = ['POST', 'OPTIONS'])
 @crossdomain(origin='*', headers=['Content-Type'])
@@ -418,15 +429,16 @@ def add_relay():
 @crossdomain(origin='*', headers=['Content-Type'])
 def delete_relay():    return tracevisor.relay.delete_relay()
 
-@app.route('/trace/api/v1.0/list', methods = ['GET'])
+@app.route('/trace/api/v1.0/relays/<int:relay_id>', methods = ['GET'])
 @crossdomain(origin='*')
-def get_analyses_list():
-    return tracevisor.get_analyses_list()
+def get_relay(relay_id):
+    return tracevisor.relay.get_relay_id(relay_id)
 
-@app.route('/trace/api/v1.0/analyses', methods = ['POST', 'OPTIONS'])
-@crossdomain(origin='*', headers=['Content-Type'])
-def start_analysis():
-    return tracevisor.start_analysis()
+# clients
+@app.route('/trace/api/v1.0/servers', methods = ['GET'])
+@crossdomain(origin='*')
+def get_server_list():
+    return tracevisor.get_server_list()
 
 @app.route('/trace/api/v1.0/clients', methods = ['POST', 'OPTIONS'])
 @crossdomain(origin='*', headers=['Content-Type'])

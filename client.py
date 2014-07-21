@@ -44,7 +44,7 @@ class Client(Tracevisor):
             cur.execute("UPDATE clients SET ipv4=:ipv4, ipv6=:ipv6, "
                     "sshport=:sshport, sshuser=:sshuser WHERE hostname=:hostname", fields)
         else:
-            cur.execute("INSERT INTO clients VALUES(?,?,?,?,?)",
+            cur.execute("INSERT INTO clients VALUES(NULL,?,?,?,?,?)",
                     (fields["hostname"], fields["ipv4"], fields["ipv6"], fields["sshport"],
                         fields["sshuser"]))
 
