@@ -476,30 +476,30 @@ def delete_client(client_id):
     return tracevisor.client.delete_client(client_id)
 
 # analyzes_servers
-@app.route('/trace/api/v1.0/analyzes_server', methods = ['GET'])
+@app.route('/trace/api/v1.0/analyzes_servers', methods = ['GET'])
 @crossdomain(origin='*')
-def get_analyzes_list():
-    return tracevisor.get_analyzes_list()
+def get_analysis_list():
+    return tracevisor.analyzes_servers.get_analysis_list()
 
-@app.route('/trace/api/v1.0/analyzes_server/<int:analyzes_id>', methods = ['GET'])
+@app.route('/trace/api/v1.0/analyzes_servers/<int:analyzes_id>', methods = ['GET'])
 @crossdomain(origin='*')
-def get_analyzes(analyzes_id):
-    return tracevisor.analyzes_servers.get_analyzes_id(analyzes_id)
+def get_analysis(analyzes_id):
+    return tracevisor.analyzes_servers.get_analysis_id(analyzes_id)
 
-@app.route('/trace/api/v1.0/analyzes_server/<int:analyzes_id>', methods = ['PUT'])
+@app.route('/trace/api/v1.0/analyzes_servers/<int:analyzes_id>', methods = ['PUT'])
 @crossdomain(origin='*')
 def update_analyzes(analyzes_id):
-    return tracevisor.analyzes_servers.update_analyzes(analyzes_id)
+    return tracevisor.analyzes_servers.update_analysis(analyzes_id)
 
-@app.route('/trace/api/v1.0/analyzes_server', methods = ['POST', 'OPTIONS'])
+@app.route('/trace/api/v1.0/analyzes_servers', methods = ['POST', 'OPTIONS'])
 @crossdomain(origin='*', headers=['Content-Type'])
 def add_analyzes():
-    return tracevisor.analyzes_servers.add_analyzes()
+    return tracevisor.analyzes_servers.add_analysis()
 
-@app.route('/trace/api/v1.0/analyzes_server/<int:analyzes_id>', methods = ['DELETE', 'OPTIONS'])
+@app.route('/trace/api/v1.0/analyzes_servers/<int:analyzes_id>', methods = ['DELETE', 'OPTIONS'])
 @crossdomain(origin='*', headers=['Content-Type'])
 def delete_analyzes(analyzes_id):
-    return tracevisor.analyzes_servers.delete_analyzes(analyzes_id)
+    return tracevisor.analyzes_servers.delete_analysis(analyzes_id)
 
 if __name__ == '__main__':
     tracevisor = Tracevisor()

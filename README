@@ -25,6 +25,7 @@ curl http://localhost:5000/trace/api/v1.0/ssh
 To list the current running sessions (the status comes from THREAD_*) :
 curl http://localhost:5000/trace/api/v1.0/list
 
+# RELAYS
 To register a relay (fields: hostname, ipv4, ipv6, ctrlport, dataport):
 curl -i -H "Content-Type: application/json" -X POST -d '{"hostname": "myrelayhostname", "ipv6":"fe80::1" }' http://localhost:5000/trace/api/v1.0/relays
 
@@ -32,11 +33,17 @@ To list the relays registered :
 curl http://localhost:5000/trace/api/v1.0/relays
 [{"ipv6": "fe80::1", "ipv4": "", "ctrlport": 5342, "hostname": "myrelayhostname", "dataport": 5343}]
 
-To delete a relay :
-curl -i -H "Content-Type: application/json" -X DELETE -d '{"hostname": "myrelayhostname" }' http://localhost:5000/trace/api/v1.0/relays
+To delete the relay ID 1 :
+curl -i -H "Content-Type: application/json" -X DELETE http://localhost:5000/trace/api/v1.0/relays/1
 
-To register a client (fields: hostname, ipv4, ipv6, sshport, sshuser):
-curl -i -H "Content-Type: application/json" -X POST -d '{"hostname": "myclienthostname", "ipv6":"fe80::1" }' http://localhost:5000/trace/api/v1.0/clients
+To get the details of relay ID 1 :
+curl http://localhost:5000/trace/api/v1.0/relays/1
 
-To delete a client :
-curl -i -H "Content-Type: application/json" -X DELETE -d '{"hostname": "myclienthostname" }' http://localhost:5000/trace/api/v1.0/clients
+To update the details of relay ID 1 :
+curl -i -H "Content-Type: application/json" -X PUT -d '{"hostname": "myrelayhostname2", "ipv6":"fe80::1" }' http://localhost:5000/trace/api/v1.0/relays/1
+
+# CLIENTS
+Same requests as the relay, base URL is /trace/api/v1.0/clients and parameters are "hostname, ipv4, ipv6, sshport, sshuser"
+
+# ANALYZES SERVERS
+Same requests as the relay, base URL is /trace/api/v1.0/analyzes_servers and parameters are "hostname, ipv4, ipv6, sshport, sshuser"

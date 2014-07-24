@@ -49,15 +49,15 @@ class Client(Tracevisor):
         return ret
 
     def insert_client(self, cur, fields):
-        cur.execute("SELECT * FROM clients WHERE hostname=:hostname", fields)
-        rq = cur.fetchall()
-        if rq:
-            cur.execute("UPDATE clients SET ipv4=:ipv4, ipv6=:ipv6, "
-                    "sshport=:sshport, sshuser=:sshuser WHERE hostname=:hostname", fields)
-        else:
-            cur.execute("INSERT INTO clients VALUES(NULL,?,?,?,?,?)",
-                    (fields["hostname"], fields["ipv4"], fields["ipv6"], fields["sshport"],
-                        fields["sshuser"]))
+        ret = self.get_client(cur, fields["hostname"])
+        if ret:
+            return -1
+        cur.execute("INSERT INTO clients VALUES(NULL,?,?,?,?,?)",
+                (fields["hostname"], fields["ipv4"], fields["ipv6"], fields["sshport"],
+                    fields["sshuser"]))
+        cur.execute("SELECT MAX(ID) FROM clients WHERE hostname=:hostname", fields)
+        r = cur.fetchall()
+        return r[0][0]
 
     def delete_client(self, client_id):
         self.connect_db()
@@ -98,10 +98,14 @@ class Client(Tracevisor):
                 rq["sshport"] = request.json["sshport"]
             if "sshuser" in request.json:
                 rq["sshuser"] = request.json["sshuser"]
-            self.insert_client(cur, rq)
+            ret = self.insert_client(cur, rq)
+            if ret > 0:
+                ret = "%s/%d" % (request.url, ret)
+            else:
+                ret = "Relay %s already exists\n" % hostname, 503
 
         self.disconnect_db()
-        return "Done\n"
+        return ret
 
     def update_client(self, client_id):
         self.connect_db()
