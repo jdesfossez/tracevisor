@@ -5,7 +5,7 @@ read a
 if test "$a" = 'n'; then
 	exit 0
 else
-	pgrep tracevisor.py | xargs kill
+	pgrep tracevisor.py | xargs kill 2>/dev/null
 	rm config.db
 	./tracevisor.py &
 	[ $? = 0 ] || exit 1
