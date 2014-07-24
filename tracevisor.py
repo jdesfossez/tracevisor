@@ -52,6 +52,7 @@ class Tracevisor:
         self.jobid = 0
         self.relay = Relay()
         self.client = Client()
+        self.analyzes_servers = AnalyzesServers()
 
     def connect_db(self):
         self.con = sqlite3.connect("config.db")
@@ -70,6 +71,10 @@ class Tracevisor:
             pass
         try:
             cur.execute("DROP TABLE clients")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cur.execute("DROP TABLE analyzes")
         except sqlite3.OperationalError:
             pass
 
@@ -104,6 +109,13 @@ class Tracevisor:
             except sqlite3.OperationalError:
                 print("Creating \"clients\" table")
                 cur.execute("CREATE TABLE clients (id INTEGER PRIMARY KEY, hostname TEXT, "
+                    "ipv4 TEXT, ipv6 TEXT, sshport INT, sshuser TEXT)")
+
+            try:
+                cur.execute("select * from analyzes")
+            except sqlite3.OperationalError:
+                print("Creating \"analyzes\" table")
+                cur.execute("CREATE TABLE analyzes (id INTEGER PRIMARY KEY, hostname TEXT, "
                     "ipv4 TEXT, ipv6 TEXT, sshport INT, sshuser TEXT)")
         self.disconnect_db()
 
@@ -462,6 +474,32 @@ def add_client():
 @crossdomain(origin='*', headers=['Content-Type'])
 def delete_client(client_id):
     return tracevisor.client.delete_client(client_id)
+
+# analyzes_servers
+@app.route('/trace/api/v1.0/analyzes_server', methods = ['GET'])
+@crossdomain(origin='*')
+def get_analyzes_list():
+    return tracevisor.get_analyzes_list()
+
+@app.route('/trace/api/v1.0/analyzes_server/<int:analyzes_id>', methods = ['GET'])
+@crossdomain(origin='*')
+def get_analyzes(analyzes_id):
+    return tracevisor.analyzes_servers.get_analyzes_id(analyzes_id)
+
+@app.route('/trace/api/v1.0/analyzes_server/<int:analyzes_id>', methods = ['PUT'])
+@crossdomain(origin='*')
+def update_analyzes(analyzes_id):
+    return tracevisor.analyzes_servers.update_analyzes(analyzes_id)
+
+@app.route('/trace/api/v1.0/analyzes_server', methods = ['POST', 'OPTIONS'])
+@crossdomain(origin='*', headers=['Content-Type'])
+def add_analyzes():
+    return tracevisor.analyzes_servers.add_analyzes()
+
+@app.route('/trace/api/v1.0/analyzes_server/<int:analyzes_id>', methods = ['DELETE', 'OPTIONS'])
+@crossdomain(origin='*', headers=['Content-Type'])
+def delete_analyzes(analyzes_id):
+    return tracevisor.analyzes_servers.delete_analyzes(analyzes_id)
 
 if __name__ == '__main__':
     tracevisor = Tracevisor()

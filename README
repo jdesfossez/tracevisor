@@ -17,7 +17,7 @@ To get the list of supported analyses and the configuration:
 curl http://localhost:5000/trace/api/v1.0/analyses
 
 To get the list of servers running tracesd (https://github.com/jdesfossez/tracesd.git) :
-curl http://localhost:5000/trace/api/v1.0/servers
+curl http://localhost:5000/trace/api/v1.0/clients
 
 To get the public ssh keys of the user that runs tracevisor :
 curl http://localhost:5000/trace/api/v1.0/ssh
