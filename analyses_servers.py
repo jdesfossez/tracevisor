@@ -1,7 +1,7 @@
 import sqlite3
 from tracevisor import *
 
-class AnalyzesServers(Tracevisor):
+class AnalysesServers(Tracevisor):
     def __init__(self):
         pass
 
@@ -16,21 +16,21 @@ class AnalyzesServers(Tracevisor):
         return analysis
 
     def get_analysis_list(self):
-        analyzes = []
+        analyses = []
         resp = None
         self.connect_db()
         cur = self.con.cursor()
         with self.con:
-            cur.execute("SELECT * FROM analyzes")
+            cur.execute("SELECT * FROM analyses")
             r = cur.fetchall()
             for i in r:
-                analyzes.append(self.rq_to_analysis(i))
-            resp = Response(json.dumps(analyzes), mimetype="application/json")
+                analyses.append(self.rq_to_analysis(i))
+            resp = Response(json.dumps(analyses), mimetype="application/json")
         self.disconnect_db()
         return resp
 
     def get_analysis(self, cur, hostname):
-        cur.execute("SELECT * FROM analyzes WHERE hostname=:hostname", {"hostname": hostname})
+        cur.execute("SELECT * FROM analyses WHERE hostname=:hostname", {"hostname": hostname})
         rq = cur.fetchall()
         if rq:
             return self.rq_to_analysis(rq[0])
@@ -40,7 +40,7 @@ class AnalyzesServers(Tracevisor):
         self.connect_db()
         with self.con:
             cur = self.con.cursor()
-            cur.execute("SELECT * FROM analyzes WHERE id=:id", {"id": analysis_id})
+            cur.execute("SELECT * FROM analyses WHERE id=:id", {"id": analysis_id})
             rq = cur.fetchall()
             if rq:
                 ret = Response(json.dumps(self.rq_to_analysis(rq[0])), mimetype="application/json")
@@ -53,10 +53,10 @@ class AnalyzesServers(Tracevisor):
         ret = self.get_analysis(cur, fields["hostname"])
         if ret:
             return -1
-        cur.execute("INSERT INTO analyzes VALUES(NULL,?,?,?,?,?)",
+        cur.execute("INSERT INTO analyses VALUES(NULL,?,?,?,?,?)",
                 (fields["hostname"], fields["ipv4"], fields["ipv6"], fields["sshport"],
                     fields["sshuser"]))
-        cur.execute("SELECT MAX(ID) FROM analyzes WHERE hostname=:hostname", fields)
+        cur.execute("SELECT MAX(ID) FROM analyses WHERE hostname=:hostname", fields)
         r = cur.fetchall()
         return r[0][0]
 
@@ -64,7 +64,7 @@ class AnalyzesServers(Tracevisor):
         self.connect_db()
         cur = self.con.cursor()
         with self.con:
-            cur.execute("DELETE FROM analyzes WHERE id=:id", {"id":analysis_id})
+            cur.execute("DELETE FROM analyses WHERE id=:id", {"id":analysis_id})
         self.disconnect_db()
         return "Done"
 
@@ -111,7 +111,7 @@ class AnalyzesServers(Tracevisor):
     def update_analysis(self, analysis_id):
         self.connect_db()
         cur = self.con.cursor()
-        cur.execute("SELECT * FROM analyzes WHERE id=:id", {"id": analysis_id})
+        cur.execute("SELECT * FROM analyses WHERE id=:id", {"id": analysis_id})
         rq = cur.fetchall()
         if not rq:
             self.disconnect_db()
@@ -131,7 +131,7 @@ class AnalyzesServers(Tracevisor):
         if "sshport" in request.json:
             analysis["sshport"] = request.json["sshport"]
 
-        cur.execute("UPDATE analyzes SET hostname=:hostname, ipv4=:ipv4, ipv6=:ipv6,"
+        cur.execute("UPDATE analyses SET hostname=:hostname, ipv4=:ipv4, ipv6=:ipv6,"
                 "sshuser=:sshuser, sshport=:sshport WHERE id=:id", (analysis))
         self.con.commit()
         self.disconnect_db()

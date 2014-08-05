@@ -75,8 +75,8 @@ Same requests as the relay, base URL is `/trace/api/v1.0/clients`
 
 Parameters: `hostname`, `ipv4`, `ipv6`, `sshport`, `sshuser`
 
-### Analyzes servers
+### Analyses servers
 
-Same requests as the relay, base URL is `/trace/api/v1.0/analyzes_servers`
+Same requests as the relay, base URL is `/trace/api/v1.0/analyses_servers`
 
 Parameters: `hostname`, `ipv4`, `ipv6`, `sshport`, `sshuser`
